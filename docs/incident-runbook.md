@@ -1,4 +1,4 @@
-# Incident Runbook (ShoolApp)
+# Incident Runbook (FigsApp-Côte d'Ivoire)
 
 ## 1. Détection
 - Vérifier erreurs 5xx et pics de `401/429`.

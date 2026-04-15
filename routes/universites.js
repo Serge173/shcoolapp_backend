@@ -4,6 +4,7 @@ const path = require('path');
 const db = require('../config/db');
 const { uploadDir } = require('../middleware/upload');
 const { resolveLogoUrl } = require('../utils/logoUrl');
+const { filterUniversitesByFiliereNiveauFigs } = require('../utils/figsParcoursMatch');
 
 // Liste des universités (option: par filière, par type)
 router.get('/', async (req, res) => {
@@ -23,7 +24,18 @@ router.get('/', async (req, res) => {
       params.push(req.query.type);
     }
     sql += ' ORDER BY u.nom';
-    const [rows] = await db.query(sql, params);
+    let [rows] = await db.query(sql, params);
+
+    const niveau = (req.query.niveau || '').trim();
+    const filiereId = req.query.filiere_id ? Number(req.query.filiere_id) : null;
+    if (niveau && filiereId && Number.isInteger(filiereId) && filiereId > 0) {
+      const [filRows] = await db.query('SELECT id, nom, slug FROM filieres WHERE id = ? AND actif = 1', [filiereId]);
+      const filiere = filRows[0];
+      if (filiere) {
+        rows = filterUniversitesByFiliereNiveauFigs(rows, filiere, niveau);
+      }
+    }
+
     for (const u of rows) {
       if (u.logo) u.logoUrl = resolveLogoUrl(u.logo);
       if (u.brochure) u.brochureUrl = '/uploads/brochures/' + path.basename(u.brochure);

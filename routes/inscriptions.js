@@ -26,11 +26,12 @@ const validations = [
   }),
   body('universite_id').isInt().withMessage('Université requise'),
   body('type_universite').isIn(['publique', 'privee']).withMessage('Type université invalide'),
+  body('pays_bureau').isIn(['CI', 'BF']).withMessage('Bureau d’origine invalide (CI ou BF).'),
   body().custom((value) => {
     const allowed = [
       'nom', 'prenom', 'date_naissance', 'sexe', 'telephone', 'email', 'ville',
       'niveau_etude', 'serie_bac', 'annee_bac', 'filiere_id', 'filiere_autre',
-      'universite_id', 'type_universite',
+      'universite_id', 'type_universite', 'pays_bureau',
     ];
     const extra = Object.keys(value || {}).filter((k) => !allowed.includes(k));
     if (extra.length) throw new Error('Champs non autorisés dans la requête.');
@@ -46,7 +47,7 @@ router.post('/', validations, async (req, res) => {
     }
     const {
       nom, prenom, date_naissance, sexe, telephone, email, ville,
-      niveau_etude, serie_bac, annee_bac, filiere_id, filiere_autre, universite_id, type_universite,
+      niveau_etude, serie_bac, annee_bac, filiere_id, filiere_autre, universite_id, type_universite, pays_bureau,
     } = req.body;
     const [uRows] = await db.query('SELECT id, nom, type, ville FROM universites WHERE id = ?', [universite_id]);
     if (!uRows.length) return res.status(400).json({ error: 'Université invalide.' });
@@ -57,9 +58,9 @@ router.post('/', validations, async (req, res) => {
       return res.status(400).json({ error: 'Ville choisie non valide pour cette université.' });
     }
 
-    await db.query(
-      `INSERT INTO inscriptions (nom, prenom, date_naissance, sexe, telephone, email, ville, niveau_etude, serie_bac, annee_bac, filiere_id, filiere_autre, universite_id, type_universite)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    const [insertMeta] = await db.query(
+      `INSERT INTO inscriptions (nom, prenom, date_naissance, sexe, telephone, email, ville, niveau_etude, serie_bac, annee_bac, filiere_id, filiere_autre, universite_id, type_universite, pays_bureau)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         nom,
         prenom,
@@ -75,26 +76,42 @@ router.post('/', validations, async (req, res) => {
         filiere_autre || null,
         universite_id,
         type_universite,
+        pays_bureau,
       ]
     );
+    const inscriptionId = insertMeta && insertMeta.insertId != null ? Number(insertMeta.insertId) : null;
     const [fRows] = filiere_id
       ? await db.query('SELECT nom FROM filieres WHERE id = ?', [filiere_id])
       : [[]];
     notifyNewInscription({
+      inscription_id: inscriptionId,
       nom,
       prenom,
+      date_naissance,
+      sexe,
       email,
       telephone,
       ville,
       niveau_etude,
-      filiere_autre,
+      serie_bac,
+      annee_bac,
+      filiere_id: filiere_id || null,
+      filiere_autre: filiere_autre || null,
       filiere_nom: fRows?.[0]?.nom || null,
+      universite_id,
       universite_nom: uRows?.[0]?.nom || null,
       type_universite,
+      pays_bureau,
     }).catch((e) => {
-      console.error('Notification error:', e.message);
+      console.error('[inscriptions] Notification error (dossier quand même enregistré):', e.message);
     });
-    writeAudit('inscription.created', { universiteId: Number(universite_id), type_universite });
+    writeAudit('inscription.created', {
+      inscriptionId,
+      universiteId: Number(universite_id),
+      type_universite,
+      pays_bureau,
+      email,
+    });
 
     res.status(201).json({ message: 'Demande d\'inscription enregistrée avec succès.' });
   } catch (err) {

@@ -11,6 +11,9 @@ const universitesRouter = require('./routes/universites');
 const inscriptionsRouter = require('./routes/inscriptions');
 const adminRouter = require('./routes/admin');
 const contactRouter = require('./routes/contact');
+const rendezVousRouter = require('./routes/rendez-vous');
+const demandesOrientationRouter = require('./routes/demandes-orientation');
+const programmesFigsRouter = require('./routes/programmes-figs');
 const { uploadDir } = require('./middleware/upload');
 const { requestLogger } = require('./middleware/requestLogger');
 
@@ -68,14 +71,26 @@ const contactLimiter = rateLimit({
   max: 20,
   message: { error: 'Trop de messages. Réessayez plus tard.' },
 });
+const rdvLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: { error: 'Trop de demandes de rendez-vous. Réessayez plus tard.' },
+});
+const demandeOrientationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 12,
+  message: { error: 'Trop de demandes. Réessayez plus tard.' },
+});
 app.use('/api/contact', contactLimiter, contactRouter);
-app.use('/api/admin', rateLimit({
+app.use('/api/rendez-vous', rdvLimiter, rendezVousRouter);
+app.use('/api/demandes-orientation', demandeOrientationLimiter, demandesOrientationRouter);
+const adminLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de requêtes admin. Réessayez plus tard.' },
-}));
+});
 
 // Fichiers statiques (uploads)
 app.use('/uploads', (req, res, next) => {
@@ -90,8 +105,9 @@ app.use('/uploads', (req, res, next) => {
 // Routes publiques
 app.use('/api/filieres', filieresRouter);
 app.use('/api/universites', universitesRouter);
+app.use('/api/programmes-figs', programmesFigsRouter);
 app.use('/api/inscriptions', inscriptionsRouter);
-app.use('/api/admin', adminRouter);
+app.use('/api/admin', adminLimiter, adminRouter);
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
@@ -100,6 +116,45 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Erreur serveur.' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Serveur ShoolApp sur http://localhost:${PORT}`);
-});
+async function start() {
+  const useSqlite =
+    process.env.DB_DRIVER === 'sqlite' || !process.env.DB_HOST;
+  if (!useSqlite && process.env.SKIP_DB_MIGRATION !== '1') {
+    try {
+      const { runPaysBureauMigrationMysql } = require('./database/migratePaysBureauMysql');
+      await runPaysBureauMigrationMysql();
+      const { ensureRendezVousTableMysql } = require('./database/ensureRendezVousTableMysql');
+      await ensureRendezVousTableMysql();
+      const { ensureDemandesOrientationMysql } = require('./database/ensureDemandesOrientationMysql');
+      await ensureDemandesOrientationMysql();
+      const { migrateFiliereGrandGroupeMysql } = require('./database/migrateFiliereGrandGroupeMysql');
+      await migrateFiliereGrandGroupeMysql();
+      const { ensureUniversiteOffresMysql } = require('./database/ensureUniversiteOffresMysql');
+      await ensureUniversiteOffresMysql();
+    } catch (err) {
+      console.error('[migration] Échec migration pays_bureau (MySQL):', err.message || err);
+      process.exit(1);
+    }
+  } else if (useSqlite) {
+    try {
+      const { ensureRendezVousTableSqlite } = require('./database/ensureRendezVousTableSqlite');
+      ensureRendezVousTableSqlite();
+      const { ensureDemandesOrientationSqlite } = require('./database/ensureDemandesOrientationSqlite');
+      ensureDemandesOrientationSqlite();
+      const { ensureInscriptionsPaysBureauSqlite } = require('./database/ensureInscriptionsPaysBureauSqlite');
+      ensureInscriptionsPaysBureauSqlite();
+      const { ensureFiliereGrandGroupeSqlite } = require('./database/ensureFiliereGrandGroupeSqlite');
+      ensureFiliereGrandGroupeSqlite();
+      const { ensureUniversiteOffresSqlite } = require('./database/ensureUniversiteOffresSqlite');
+      ensureUniversiteOffresSqlite();
+    } catch (e) {
+      console.warn('[schema] SQLite:', e.message);
+    }
+  }
+
+  app.listen(PORT, () => {
+    console.log(`Serveur FigsApp-Côte d'Ivoire sur http://localhost:${PORT}`);
+  });
+}
+
+start();

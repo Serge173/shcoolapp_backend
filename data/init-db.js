@@ -8,6 +8,7 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const { universites, filieresParUniversite } = require('./universites-seed');
 const { campusesRowsForUniversite } = require('./campuses-seed');
+const { computeNewSousFilieres } = require('../utils/filiereReferentielSync');
 
 const dataDir = path.join(__dirname);
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
@@ -33,6 +34,7 @@ db.exec(`
     nom TEXT NOT NULL UNIQUE,
     slug TEXT NOT NULL UNIQUE,
     actif INTEGER NOT NULL DEFAULT 1,
+    grand_groupe TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -67,7 +69,21 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS universite_filieres (
     universite_id INTEGER NOT NULL REFERENCES universites(id) ON DELETE CASCADE,
     filiere_id INTEGER NOT NULL REFERENCES filieres(id) ON DELETE CASCADE,
+    offre_filiere_entiere INTEGER NOT NULL DEFAULT 1,
     PRIMARY KEY (universite_id, filiere_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS universite_sous_filieres (
+    universite_id INTEGER NOT NULL REFERENCES universites(id) ON DELETE CASCADE,
+    sous_filiere_id INTEGER NOT NULL REFERENCES sous_filieres(id) ON DELETE CASCADE,
+    PRIMARY KEY (universite_id, sous_filiere_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS universite_specialites_libelle (
+    universite_id INTEGER NOT NULL REFERENCES universites(id) ON DELETE CASCADE,
+    filiere_id INTEGER NOT NULL REFERENCES filieres(id) ON DELETE CASCADE,
+    libelle TEXT NOT NULL,
+    PRIMARY KEY (universite_id, filiere_id, libelle)
   );
 
   CREATE TABLE IF NOT EXISTS campuses (
@@ -97,9 +113,54 @@ db.exec(`
     filiere_autre TEXT,
     universite_id INTEGER NOT NULL REFERENCES universites(id),
     type_universite TEXT NOT NULL CHECK(type_universite IN ('publique', 'privee')),
+    pays_bureau TEXT NOT NULL DEFAULT 'CI' CHECK(pays_bureau IN ('CI', 'BF')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS rendez_vous (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nom TEXT NOT NULL,
+    prenom TEXT NOT NULL,
+    email TEXT NOT NULL,
+    telephone TEXT NOT NULL,
+    pays_bureau TEXT NOT NULL DEFAULT 'CI' CHECK(pays_bureau IN ('CI', 'BF')),
+    type_rdv TEXT NOT NULL,
+    date_souhaitee TEXT NOT NULL,
+    creneau TEXT NOT NULL,
+    message TEXT,
+    statut TEXT NOT NULL DEFAULT 'nouveau' CHECK(statut IN ('nouveau', 'a_confirmer', 'confirme', 'annule', 'termine')),
+    notes_internes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS demandes_orientation (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nom TEXT NOT NULL,
+    prenom TEXT NOT NULL,
+    email TEXT NOT NULL,
+    telephone TEXT NOT NULL,
+    pays_bureau TEXT NOT NULL DEFAULT 'CI' CHECK(pays_bureau IN ('CI', 'BF')),
+    grande_filiere TEXT NOT NULL,
+    specialite TEXT NOT NULL,
+    besoin_orientation INTEGER NOT NULL DEFAULT 1 CHECK(besoin_orientation IN (0, 1)),
+    message TEXT,
+    statut TEXT NOT NULL DEFAULT 'nouveau' CHECK(statut IN ('nouveau', 'validee', 'traitee', 'annulee')),
+    notes_internes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
+  try {
+    db.exec(`ALTER TABLE inscriptions ADD COLUMN pays_bureau TEXT NOT NULL DEFAULT 'CI';`);
+  } catch (e) {
+    if (!String(e.message || '').includes('duplicate column')) throw e;
+  }
+  try {
+    db.exec('ALTER TABLE filieres ADD COLUMN grand_groupe TEXT;');
+  } catch (e) {
+    if (!String(e.message || '').includes('duplicate column')) throw e;
+  }
 
 const filieres = [
   ['Médecine', 'medecine'],
@@ -117,6 +178,17 @@ const filieres = [
 const insertFiliere = db.prepare('INSERT OR IGNORE INTO filieres (nom, slug) VALUES (?, ?)');
 filieres.forEach(([nom, slug]) => insertFiliere.run(nom, slug));
 console.log('10 filières insérées.');
+
+const insertSousRef = db.prepare('INSERT OR IGNORE INTO sous_filieres (filiere_id, nom, slug) VALUES (?, ?, ?)');
+const allFilRows = db.prepare('SELECT id, nom, slug, grand_groupe FROM filieres').all();
+for (const f of allFilRows) {
+  const existing = db.prepare('SELECT slug, nom FROM sous_filieres WHERE filiere_id = ?').all(f.id);
+  const { toInsert } = computeNewSousFilieres(f, existing);
+  for (const row of toInsert) {
+    insertSousRef.run(f.id, row.nom, row.slug);
+  }
+}
+console.log('Spécialités référentiel ajoutées comme sous-filières (sans doublon).');
 
 const hash = bcrypt.hashSync('admin123', 10);
 try {

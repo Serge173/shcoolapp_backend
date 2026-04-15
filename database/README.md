@@ -1,4 +1,4 @@
-# Base de données ShoolApp
+# Base de données FigsApp-Côte d'Ivoire
 
 ## Ordre d'exécution
 

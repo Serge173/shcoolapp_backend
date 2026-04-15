@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: shcoolapp-backend
+    name: figsapp-cote-divoire-backend
     runtime: node
     plan: free
     autoDeploy: true
@@ -10,8 +10,6 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 10000
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN
@@ -21,7 +19,7 @@ services:
       - key: JSON_BODY_LIMIT
         value: 200kb
       - key: CORS_ORIGIN
-        value: https://frontend-six-psi-82.vercel.app
+        sync: false
       - key: DB_HOST
         sync: false
       - key: DB_USER

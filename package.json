@@ -1,11 +1,12 @@
 {
-  "name": "shoolapp-backend",
+  "name": "figsapp-cote-divoire-backend",
   "version": "1.0.0",
-  "description": "API plateforme orientation et inscription universitaire",
+  "description": "API FigsApp-Côte d'Ivoire — orientation et inscription universitaire",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "migrate:pays-bureau": "node database/apply-pays-bureau-migration.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

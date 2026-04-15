@@ -122,7 +122,7 @@ const universites = [
     type: 'privee',
     ville: 'France',
     description: 'Réseau MLA — 13 campus · 3 formations. Communication et médias (supdecom.fr).',
-    logo: ecoleLogo('medium_LOGO_SUPDECOM_and_RVB_1_3cfa6e6ffd_3b38beca52.png'),
+    logo: 'https://www.ecoles-supdecom.com/_ipx/s_180x72/images/logo-navbar.svg',
   },
   {
     nom: 'VIVAMUNDI',

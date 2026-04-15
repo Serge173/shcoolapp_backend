@@ -29,3 +29,27 @@
 {"ts":"2026-03-30T12:06:00.250Z","event":"admin.filiere.create","adminId":1,"filiereId":81,"ip":"::1"}
 {"ts":"2026-03-30T12:06:08.333Z","event":"admin.sous_filiere.create","adminId":1,"filiereId":81,"sousFiliereId":1,"ip":"::1"}
 {"ts":"2026-03-30T12:06:20.053Z","event":"admin.filiere.delete","adminId":1,"filiereId":81,"ip":"::1"}
+{"ts":"2026-04-09T13:40:36.536Z","event":"admin.login.success","adminId":1,"email":"admin@shoolapp.com","ip":"::1"}
+{"ts":"2026-04-10T10:06:31.066Z","event":"rendez_vous.created","email":"skeayeni@gmail.com","pays_bureau":"CI","type_rdv":"orientation","date_souhaitee":"2026-04-23"}
+{"ts":"2026-04-10T18:09:09.946Z","event":"admin.login.success","adminId":1,"email":"admin@shoolapp.com","ip":"::1"}
+{"ts":"2026-04-10T18:09:31.145Z","event":"rendez_vous.updated","id":1,"statut":"confirme","adminId":1}
+{"ts":"2026-04-13T09:34:29.744Z","event":"admin.login.success","adminId":1,"email":"admin@shoolapp.com","ip":"::1"}
+{"ts":"2026-04-13T09:34:53.653Z","event":"admin.universite.update","adminId":1,"universiteId":90,"ip":"::1"}
+{"ts":"2026-04-13T10:18:55.830Z","event":"admin.logout","adminId":1,"ip":"::1"}
+{"ts":"2026-04-13T10:18:57.424Z","event":"admin.login.success","adminId":1,"email":"admin@shoolapp.com","ip":"::1"}
+{"ts":"2026-04-13T11:48:08.301Z","event":"admin.universite.update","adminId":1,"universiteId":90,"ip":"::1"}
+{"ts":"2026-04-13T11:58:02.854Z","event":"admin.sous_filiere.create","adminId":1,"filiereId":9,"sousFiliereId":2,"ip":"::1"}
+{"ts":"2026-04-13T11:58:11.386Z","event":"admin.sous_filiere.create","adminId":1,"filiereId":9,"sousFiliereId":3,"ip":"::1"}
+{"ts":"2026-04-13T11:58:23.761Z","event":"admin.sous_filiere.delete","adminId":1,"sousFiliereId":3,"ip":"::1"}
+{"ts":"2026-04-13T11:58:25.939Z","event":"admin.sous_filiere.delete","adminId":1,"sousFiliereId":2,"ip":"::1"}
+{"ts":"2026-04-13T12:07:52.362Z","event":"admin.filiere.update","adminId":1,"filiereId":9,"ip":"::1"}
+{"ts":"2026-04-13T12:09:36.876Z","event":"demande_orientation.created","email":"skeayeni@gmail.com","pays_bureau":"CI","grande_filiere":"Tourisme","specialite":"Responsable d’agence et de commerce"}
+{"ts":"2026-04-13T12:10:06.363Z","event":"demande_orientation.created","email":"skeayeni@gmail.com","pays_bureau":"CI","grande_filiere":"Comptabilite - gestion","specialite":"Gestion des paies et RH administratives"}
+{"ts":"2026-04-13T12:12:01.154Z","event":"inscription.created","universiteId":101,"type_universite":"privee","pays_bureau":"CI"}
+{"ts":"2026-04-13T12:20:45.305Z","event":"demande_orientation.updated","id":2,"statut":"traitee","adminId":1}
+{"ts":"2026-04-13T12:20:50.609Z","event":"demande_orientation.updated","id":1,"statut":"validee","adminId":1}
+{"ts":"2026-04-13T13:25:01.218Z","event":"demande_orientation.created","email":"skeayeni@gmail.com","pays_bureau":"CI","grande_filiere":"Comptabilite - gestion","specialite":"Collaborateur en gestion comptable et financière"}
+{"ts":"2026-04-13T13:29:09.706Z","event":"inscription.created","universiteId":90,"type_universite":"privee","pays_bureau":"CI"}
+{"ts":"2026-04-13T13:29:57.226Z","event":"admin.login.success","adminId":1,"email":"admin@shoolapp.com","ip":"::1"}
+{"ts":"2026-04-13T13:39:34.774Z","event":"rendez_vous.created","email":"skeayeni@gmail.com","pays_bureau":"CI","type_rdv":"orientation","date_souhaitee":"2026-04-23"}
+{"ts":"2026-04-15T10:04:09.050Z","event":"admin.login.success","adminId":1,"email":"admin@shoolapp.com","ip":"::1"}

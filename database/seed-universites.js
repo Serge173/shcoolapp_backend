@@ -7,6 +7,7 @@ require('dotenv').config();
 const mysql = require('mysql2/promise');
 const { universites, filieresParUniversite } = require('../data/universites-seed');
 const { campusesRowsForUniversite } = require('../data/campuses-seed');
+const { ensureReferentielSousFilieresAll } = require('../utils/filiereReferentielSync');
 
 const config = {
   host: process.env.DB_HOST || 'localhost',
@@ -67,6 +68,13 @@ async function run() {
         [row.id, c.nom, c.ville, c.adresse, c.latitude, c.longitude, c.ordre]
       );
     }
+  }
+
+  try {
+    const sync = await ensureReferentielSousFilieresAll(conn);
+    console.log(`Référentiel → sous-filières : ${sync.sousFilieresAdded} ligne(s) ajoutée(s) sur ${sync.filieres} filière(s).`);
+  } catch (e) {
+    console.warn('Sync référentiel sous-filières ignorée ou en erreur :', e.message || e);
   }
 
   console.log('Terminé. Filières + 22 universités + campus (logos MLA : public/images/ecoles/*.png).');
