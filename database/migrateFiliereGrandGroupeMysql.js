@@ -2,6 +2,7 @@
  * Colonne grand_groupe sur filieres (MySQL, idempotente).
  */
 const mysql = require('mysql2/promise');
+const { getMysqlClientOptions } = require('../utils/mysqlEnvOptions');
 
 async function migrateFiliereGrandGroupeMysql() {
   if (!process.env.DB_HOST) {
@@ -9,14 +10,7 @@ async function migrateFiliereGrandGroupeMysql() {
   }
 
   const conn = await mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'shoolapp',
-    ssl:
-      process.env.DB_SSL === 'true'
-        ? { minVersion: 'TLSv1.2', rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' }
-        : undefined,
+    ...getMysqlClientOptions(),
   });
 
   try {

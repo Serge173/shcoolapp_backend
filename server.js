@@ -6,6 +6,9 @@ const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
+const { assertProductionConfig, isSqliteMode } = require('./utils/validateProdEnv');
+assertProductionConfig();
+
 const filieresRouter = require('./routes/filieres');
 const universitesRouter = require('./routes/universites');
 const inscriptionsRouter = require('./routes/inscriptions');
@@ -20,19 +23,13 @@ const { requestLogger } = require('./middleware/requestLogger');
 const app = express();
 const PORT = process.env.PORT || 5000;
 const isProd = process.env.NODE_ENV === 'production';
-
-if (isProd && !process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET is required in production.');
-}
-
-if (isProd && !process.env.CORS_ORIGIN) {
-  throw new Error('CORS_ORIGIN must be configured in production.');
-}
+const useSqlite = isSqliteMode();
 
 app.set('trust proxy', 1);
 app.use(cookieParser());
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   contentSecurityPolicy: {
     useDefaults: true,
     directives: {
@@ -109,31 +106,74 @@ app.use('/api/programmes-figs', programmesFigsRouter);
 app.use('/api/inscriptions', inscriptionsRouter);
 app.use('/api/admin', adminLimiter, adminRouter);
 
-app.get('/api/health', (req, res) => res.json({ ok: true }));
+app.get('/api/health', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({
+    ok: true,
+    uptime_s: Math.floor(process.uptime()),
+    env: isProd ? 'production' : 'development',
+  });
+});
+
+/** Prêt à recevoir du trafic applicatif (MySQL joignable). Render peut garder /api/health pour le probe léger. */
+app.get('/api/health/ready', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  if (useSqlite) {
+    return res.json({ ok: true, db: 'sqlite' });
+  }
+  try {
+    const pool = require('./config/db');
+    await pool.query('SELECT 1 AS ok');
+    return res.json({ ok: true, db: 'mysql' });
+  } catch (e) {
+    console.warn('[health/ready]', e.code || e.message);
+    return res.status(503).json({ ok: false, error: 'database_unavailable' });
+  }
+});
 
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).json({ error: 'Erreur serveur.' });
 });
 
-async function start() {
-  const useSqlite =
-    process.env.DB_DRIVER === 'sqlite' || !process.env.DB_HOST;
-  if (!useSqlite && process.env.SKIP_DB_MIGRATION !== '1') {
+async function waitForMysqlPool(pool) {
+  const max = Math.min(60, Math.max(1, Number(process.env.DB_STARTUP_MAX_ATTEMPTS) || 30));
+  const delay = Math.min(10000, Math.max(500, Number(process.env.DB_STARTUP_DELAY_MS) || 2000));
+  for (let i = 1; i <= max; i += 1) {
     try {
-      const { runPaysBureauMigrationMysql } = require('./database/migratePaysBureauMysql');
-      await runPaysBureauMigrationMysql();
-      const { ensureRendezVousTableMysql } = require('./database/ensureRendezVousTableMysql');
-      await ensureRendezVousTableMysql();
-      const { ensureDemandesOrientationMysql } = require('./database/ensureDemandesOrientationMysql');
-      await ensureDemandesOrientationMysql();
-      const { migrateFiliereGrandGroupeMysql } = require('./database/migrateFiliereGrandGroupeMysql');
-      await migrateFiliereGrandGroupeMysql();
-      const { ensureUniversiteOffresMysql } = require('./database/ensureUniversiteOffresMysql');
-      await ensureUniversiteOffresMysql();
+      await pool.query('SELECT 1');
+      if (i > 1) console.log(`[db] Connexion MySQL OK après ${i} tentative(s).`);
+      return;
     } catch (err) {
-      console.error('[migration] Échec migration pays_bureau (MySQL):', err.message || err);
-      process.exit(1);
+      console.error(`[db] Tentative ${i}/${max} échouée:`, err.code || err.message);
+      if (i === max) throw err;
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+}
+
+async function start() {
+  if (!useSqlite) {
+    const pool = require('./config/db');
+    await waitForMysqlPool(pool);
+    if (process.env.SKIP_DB_MIGRATION !== '1') {
+      try {
+        const { runPaysBureauMigrationMysql } = require('./database/migratePaysBureauMysql');
+        await runPaysBureauMigrationMysql();
+        const { ensureRendezVousTableMysql } = require('./database/ensureRendezVousTableMysql');
+        await ensureRendezVousTableMysql();
+        const { ensureDemandesOrientationMysql } = require('./database/ensureDemandesOrientationMysql');
+        await ensureDemandesOrientationMysql();
+        const { migrateFiliereGrandGroupeMysql } = require('./database/migrateFiliereGrandGroupeMysql');
+        await migrateFiliereGrandGroupeMysql();
+        const { ensureUniversiteOffresMysql } = require('./database/ensureUniversiteOffresMysql');
+        await ensureUniversiteOffresMysql();
+      } catch (err) {
+        console.error('[migration] Échec migrations MySQL:', err.message || err);
+        process.exit(1);
+      }
+    } else {
+      console.warn('[migration] SKIP_DB_MIGRATION=1 : migrations auto désactivées.');
     }
   } else if (useSqlite) {
     try {
@@ -152,9 +192,32 @@ async function start() {
     }
   }
 
-  app.listen(PORT, () => {
+  const httpServer = app.listen(PORT, () => {
     console.log(`Serveur FigsApp-Côte d'Ivoire sur http://localhost:${PORT}`);
   });
+
+  const shutdown = (signal) => {
+    console.log(`[signal] ${signal}, arrêt gracieux…`);
+    httpServer.close(() => {
+      console.log('[signal] HTTP fermé.');
+      if (!useSqlite) {
+        try {
+          const pool = require('./config/db');
+          if (pool && typeof pool.end === 'function') {
+            pool.end(() => process.exit(0));
+            return;
+          }
+        } catch (_) {}
+      }
+      process.exit(0);
+    });
+    setTimeout(() => {
+      console.error('[signal] Timeout arrêt, exit 1.');
+      process.exit(1);
+    }, 15000).unref();
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 start();

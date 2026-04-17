@@ -1,0 +1,9 @@
+# Config as Code — service dont la racine Git est `backend/`.
+# Dans Railway : Settings → Config file → `/backend/railway.toml` (si le repo est monorepo).
+# https://docs.railway.com/guides/config-as-code
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE" # ALWAYS | ON_FAILURE | NEVER

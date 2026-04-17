@@ -2,6 +2,7 @@
  * Crée la table demandes_orientation si absente (MySQL / Render).
  */
 const mysql = require('mysql2/promise');
+const { getMysqlClientOptions } = require('../utils/mysqlEnvOptions');
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS demandes_orientation (
@@ -27,14 +28,7 @@ CREATE TABLE IF NOT EXISTS demandes_orientation (
 async function ensureDemandesOrientationMysql() {
   if (!process.env.DB_HOST) return { skipped: true };
   const conn = await mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'shoolapp',
-    ssl:
-      process.env.DB_SSL === 'true'
-        ? { minVersion: 'TLSv1.2', rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' }
-        : undefined,
+    ...getMysqlClientOptions(),
     multipleStatements: true,
   });
   try {

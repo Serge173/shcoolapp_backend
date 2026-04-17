@@ -3,6 +3,7 @@
  * Utilisée au démarrage du serveur (Render) et par `npm run migrate:pays-bureau`.
  */
 const mysql = require('mysql2/promise');
+const { getMysqlClientOptions } = require('../utils/mysqlEnvOptions');
 
 async function runPaysBureauMigrationMysql() {
   if (!process.env.DB_HOST) {
@@ -10,14 +11,7 @@ async function runPaysBureauMigrationMysql() {
   }
 
   const conn = await mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'shoolapp',
-    ssl:
-      process.env.DB_SSL === 'true'
-        ? { minVersion: 'TLSv1.2', rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' }
-        : undefined,
+    ...getMysqlClientOptions(),
   });
 
   try {

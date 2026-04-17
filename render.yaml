@@ -1,7 +1,9 @@
+# Copie / référence — le blueprint utilisé par Render est à la racine : ../render.yaml
 services:
   - type: web
     name: figsapp-cote-divoire-backend
     runtime: node
+    region: frankfurt
     plan: free
     autoDeploy: true
     buildCommand: npm install
@@ -19,7 +21,7 @@ services:
       - key: JSON_BODY_LIMIT
         value: 200kb
       - key: CORS_ORIGIN
-        sync: false
+        value: https://frontend-six-psi-82.vercel.app
       - key: DB_HOST
         sync: false
       - key: DB_USER
@@ -32,3 +34,7 @@ services:
         value: true
       - key: DB_SSL_REJECT_UNAUTHORIZED
         value: true
+      - key: DB_STARTUP_MAX_ATTEMPTS
+        value: "30"
+      - key: DB_STARTUP_DELAY_MS
+        value: "2000"

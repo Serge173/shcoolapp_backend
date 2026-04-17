@@ -8,16 +8,12 @@ const mysql = require('mysql2/promise');
 const { universites, filieresParUniversite } = require('../data/universites-seed');
 const { campusesRowsForUniversite } = require('../data/campuses-seed');
 const { ensureReferentielSousFilieresAll } = require('../utils/filiereReferentielSync');
-
-const config = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'shoolapp',
-};
+const { getMysqlClientOptions } = require('../utils/mysqlEnvOptions');
 
 async function run() {
-  const conn = await mysql.createConnection(config);
+  const conn = await mysql.createConnection({
+    ...getMysqlClientOptions(),
+  });
 
   console.log('Vérification des filières de base...');
   await conn.execute(

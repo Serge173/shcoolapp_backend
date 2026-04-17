@@ -1,13 +1,11 @@
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const mysql = require('mysql2/promise');
+const { getMysqlClientOptions } = require('../utils/mysqlEnvOptions');
 
 async function seed() {
   const conn = await mysql.createConnection({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'shoolapp',
+    ...getMysqlClientOptions(),
   });
   const hash = await bcrypt.hash('admin123', 10);
   await conn.execute(

@@ -3,9 +3,15 @@
   "version": "1.0.0",
   "description": "API FigsApp-Côte d'Ivoire — orientation et inscription universitaire",
   "main": "server.js",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "verify:env": "node utils/validateProdEnv.js --prod",
+    "db:ping": "node scripts/mysql-ping.js",
+    "db:apply-schema": "node scripts/apply-schema-mysql.js",
     "migrate:pays-bureau": "node database/apply-pays-bureau-migration.js"
   },
   "dependencies": {

@@ -25,11 +25,9 @@ async function main() {
   }
 
   const mysql = require('mysql2/promise');
+  const { getMysqlClientOptions } = require('../utils/mysqlEnvOptions');
   const conn = await mysql.createConnection({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'shoolapp',
+    ...getMysqlClientOptions(),
   });
   const [res] = await conn.execute('UPDATE universites SET logo = ? WHERE nom = ?', [LOGO, NOM]);
   console.log(`patch-supdecom-logo (mysql): ${res.affectedRows} ligne(s) mise(s) à jour.`);

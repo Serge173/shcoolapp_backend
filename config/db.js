@@ -31,15 +31,15 @@ if (useSqlite) {
   };
 } else {
   const mysql = require('mysql2/promise');
+  const { getMysqlClientOptions } = require('../utils/mysqlEnvOptions');
   const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'shoolapp',
-    ssl: process.env.DB_SSL === 'true' ? { minVersion: 'TLSv1.2', rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' } : undefined,
+    ...getMysqlClientOptions(),
     waitForConnections: true,
-    connectionLimit: 10,
+    connectionLimit: Number(process.env.DB_POOL_LIMIT) || 10,
     queueLimit: 0,
+    connectTimeout: Number(process.env.DB_CONNECT_TIMEOUT_MS) || 20000,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0,
   });
   module.exports = pool;
 }

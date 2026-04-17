@@ -6,6 +6,7 @@ const { body, param, query, validationResult } = require('express-validator');
 const db = require('../config/db');
 const path = require('path');
 const { authenticate, generateToken, ADMIN_COOKIE_NAME } = require('../middleware/auth');
+const { adminSessionCookieBase, MAX_AGE_MS } = require('../utils/adminCookieOptions');
 const { uploadPhotos, uploadBrochure, uploadLogo, photosDir, brochuresDir, logosDir } = require('../middleware/upload');
 const { resolveLogoUrl } = require('../utils/logoUrl');
 const { writeAudit } = require('../utils/auditLog');
@@ -15,9 +16,11 @@ const isProd = process.env.NODE_ENV === 'production';
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: isProd ? 10 : 25,
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => keyFor(req, req.body && req.body.email),
   message: { error: 'Trop de tentatives de connexion. Réessayez plus tard.' },
 });
 
@@ -98,11 +101,8 @@ router.post('/login', loginLimiter, [
     }
     const token = generateToken(admin);
     res.cookie(ADMIN_COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: 'lax',
-      maxAge: 12 * 60 * 60 * 1000,
-      path: '/',
+      ...adminSessionCookieBase(),
+      maxAge: MAX_AGE_MS,
     });
     writeAudit('admin.login.success', { adminId: admin.id, email: admin.email, ip: getClientIp(req) });
     res.json({ admin: { id: admin.id, email: admin.email, nom: admin.nom } });
@@ -113,7 +113,7 @@ router.post('/login', loginLimiter, [
 });
 
 router.post('/logout', authenticate, (req, res) => {
-  res.clearCookie(ADMIN_COOKIE_NAME, { path: '/' });
+  res.clearCookie(ADMIN_COOKIE_NAME, adminSessionCookieBase());
   writeAudit('admin.logout', { adminId: req.adminId, ip: getClientIp(req) });
   res.json({ message: 'Déconnecté.' });
 });
