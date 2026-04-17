@@ -22,9 +22,17 @@ function assertProductionConfig() {
     .split(',')
     .map((v) => v.trim())
     .filter(Boolean);
-  const bad = origins.filter((o) => o.includes('*') || !/^https:\/\//i.test(o));
+  const isAllowedCorsOrigin = (o) => {
+    if (o.includes('*')) return false;
+    if (/^https:\/\//i.test(o)) return true;
+    // Dev local / tests : navigateur sur localhost même si NODE_ENV=production
+    return /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(o);
+  };
+  const bad = origins.filter((o) => !isAllowedCorsOrigin(o));
   if (bad.length) {
-    throw new Error('CORS_ORIGIN must be HTTPS URLs only (no wildcards), comma-separated.');
+    throw new Error(
+      'CORS_ORIGIN: URLs publiques en https uniquement, ou http://localhost|127.0.0.1 (port optionnel). Pas de wildcard. Séparateur virgule.'
+    );
   }
 
   if (!isSqliteMode()) {
@@ -56,6 +64,7 @@ module.exports = { assertProductionConfig, isSqliteMode, validateCli };
 
 if (require.main === module) {
   if (process.argv.includes('--prod')) {
+    require('dotenv').config();
     process.env.NODE_ENV = 'production';
     validateCli();
   } else {
